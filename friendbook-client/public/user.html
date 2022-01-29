@@ -1,0 +1,268 @@
+<!-- pract 8 section 5-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Friendbook</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+</head>
+<body>
+    <div class="container">
+        <nav class="nav">
+            <a class="nav-link" href="/">Home</a>
+            <a class="nav-link" href="/users/">All Users</a>
+        </nav>
+
+        <div class="row" style="margin-top: 2rem;">
+            <div class="col-md-8 col-xs-12">
+                <div id="user-profile">
+                </div>
+                
+                <!-- one option for section 7, add a button and then show/hide based on code logic -->
+                <!-- <button id="add-friend" class="btn btn-primary">Add Friend</button>
+                <button id="remove-friend" class="btn btn-danger">Remove Friend</button> -->
+
+                <div id="posts">
+                </div>
+            </div>
+
+            <div class="col-md-4 col-xs-12">
+                <h2>Friends</h2>
+                <ul id="friends-list" class="item-group" style="list-style: none; padding-left: 0;">
+                </ul>
+            </div>
+        </div>
+    </div>
+    <script
+        src="https://code.jquery.com/jquery-3.3.1.min.js"
+        integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+        crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script>
+        // convenience. easy to maintain host url
+        // const baseUrl = "http://localhost:3000";
+        // // temporary. assume logged in user is id 1
+        // const loggedInUserID = 1;
+
+        // section 8 use logged in data
+        const baseUrl = "http://localhost:3000";
+        const token = localStorage.getItem("token");
+        const loggedInUserID = parseInt(localStorage.getItem("loggedInUserID"));
+
+        if (token === null || isNaN(loggedInUserID)) {
+            window.location.href = "/login/";
+        } else {
+
+            // to extract the userid from url - eg, .../user/4
+            const url = window.location.toString();
+            const userID = parseInt(url.split("/").slice(-1)[0]);
+            let posts;
+
+            // put button template code here so that don't have to create when needed
+            const removebtn = `<button id="remove-friend" class="btn btn-danger">Remove Friend</button>`
+            const addbutton = `<button id="add-friend" class="btn btn-primary">Add Friend</button>`
+                    
+            // get the user info from backend and database using userid
+            axios.get(`${baseUrl}/users/${userID}`)
+                .then((response) => {
+                    // append user profile
+                    const user = response.data;
+                    $("#user-profile").append(`
+                    <h1>${user.full_name}</h1>
+                    <p style="margin-top: 1rem;">${user.bio}</p>
+                    `);
+                    
+
+                })
+                // .then( //-- use promises to chain to avoid too many nested callback
+                //     // option 2 for section 7 add/remove friend button here
+                //     //const addFriendButton = `<button id=""></button>`
+                //     // get all the user's friends from backend
+                //     axios.get(`${baseUrl}/users/${userID}/friends`)
+                //         .then((response)=>{
+                //             // what to do when all friends returned from backend
+
+                //         })
+                // )
+
+            // fetch and append user posts
+            axios.get(`${baseUrl}/users/${userID}/posts/`)
+                .then((response) => {
+                        posts = response.data;
+                        // loop thru each post
+                        posts.forEach((post, index) => {
+                            // format the html to display this post
+                            const likeHtml = `
+                            <button class="btn btn-primary like-button" data-index=${index}>Like</button>
+                            `;
+
+                            const unlikeHtml = `
+                            <button class="btn btn-danger unlike-button" data-index=${index}>Unlike</button>
+                            `;
+
+                            const hasLiked = post.likers.map(liker => liker.id).includes(loggedInUserID);
+                            
+                            const postHtml = `
+                            <div class="card" style="margin-top: 2rem;">
+                                <div class="card-body">
+                                    <p class="card-text">${post.text_body}</p>
+                                    ${ hasLiked ? unlikeHtml : likeHtml }
+                                    <h5 style="margin-top: 1rem;">Likers</h5>
+                                    <ul class="list-group">
+                                        ${
+                                            post.likers
+                                                .map(liker => `
+                                                <li class="list-group-item">
+                                                    <a href="/users/${liker.id}">${liker.full_name}</a>
+                                                </li>
+                                                `)
+                                                .join("")
+                                        }
+                                    </ul>
+                                </div>
+                                <div class="card-footer text-muted">
+                                    ${post.created_at}
+                                </div>
+                            </div>
+                            `;
+                            // add it inside #posts div
+                            $("#posts").append(postHtml);
+                        });
+                    });
+
+            // fetch user's friends
+            axios.get(`${baseUrl}/users/${userID}/friends/`)
+                .then((response) => {
+                    const friends = response.data;
+                    // loop thru each friend
+                    friends.forEach((friend) => {
+                        // add result in html to #friends-list div
+                        $("#friends-list").append(`
+                        <li class="list-group-item">
+                            <a href="/users/${friend.id}">${friend.full_name}<a/>
+                        </li>
+                        `);
+                    });
+                    // check if loggedinuser is friend of this user
+                    // loop thru the friends array to check 
+                    // if loggedinuser is one of the friend by the id
+                    const isFriend = friends.map(friend=>friend.id).includes(loggedInUserID)
+                    // if(isFriend){
+                    //     // show remove friend button
+                    //     // hide add friend button
+                    //     // $("#remove-friend").show()
+                    //     // $("#add-friend").hide()
+                    //     // <button id="add-friend" class="btn btn-primary">Add Friend</button>
+                    //     // alternatively add button only when results returned from backend
+                    //     const removebtn = `<button id="remove-friend" class="btn btn-danger">Remove Friend</button>`
+                    //     $("#user-profile").append(removebtn)
+                    // }else{
+                    //     // $("#remove-friend").hide()
+                    //     // $("#add-friend").show()
+                    //     const addbutton = `<button id="add-friend" class="btn btn-primary">Add Friend</button>`
+                    //     $("#user-profile").append(addbutton)
+                    // }
+                    // shorter version
+                    // const removebtn = `<button id="remove-friend" class="btn btn-danger">Remove Friend</button>`
+                    // const addbutton = `<button id="add-friend" class="btn btn-primary">Add Friend</button>`
+                    // if the logged in user is not the user shown in this page
+                    // then show button
+                    if(userID != loggedInUserID){
+                        $("#user-profile").append((isFriend)?removebtn : addbutton)
+                    }
+                });
+                
+            // listens for like button clicks
+            // we have to use the .on method instead of $(".like-button").click because this
+            // supports listening to dynamically added like/unlike buttons.
+            // IMPORTANT: DO NOT USE arrow functions because then `this` will not refer to the button!
+            $(document).on("click", ".like-button", function() {
+                // get the index from button. 
+                // this index correspond to the index of the post in array
+                const index = parseInt($(this).attr("data-index"));
+                // using the index, we get the corresponding post
+                const post = posts[index];
+                // section 8.4 DO on your own
+                axios.post(`${baseUrl}/posts/${post.id}/likers/${loggedInUserID}`)
+                    .then((res) => {
+                        // change button to unlike on success
+                        const unlikeHtml = `
+                        <button class="btn btn-danger unlike-button" data-index=${index}>Unlike</button>
+                        `;
+                        $(this).replaceWith(unlikeHtml);
+                    });
+            });
+
+            // listens for unlike button clicks
+            $(document).on("click", ".unlike-button", function() {
+                const index = parseInt($(this).attr("data-index"));
+                const post = posts[index];
+                // section 8.4 DO on your own
+                axios.delete(`${baseUrl}/posts/${post.id}/likers/${loggedInUserID}`)
+                    .then((res) => {
+                        // change button to like on success
+                        const likeHtml = `
+                        <button class="btn btn-primary like-button" data-index=${index}>Like</button>
+                        `;
+                        $(this).replaceWith(likeHtml);
+                    });
+            });
+
+            // section 7 add event listener to add/remove button
+            $(document).on("click", "#add-friend", (evt)=>{
+                console.log("add friend button working")
+                // add friend thru the backend
+                // axios.post(`${baseUrl}/users/${loggedInUserID}/friends/${userID}`)
+                //     .then((response)=>{
+                //         //console.log(this)
+
+                //         // add vice versa
+                //         axios.post(`${baseUrl}/users/${userID}/friends/${loggedInUserID}`)
+                //             .then((res)=>{
+                //                 // change this button to remove
+                //                 $("#add-friend").replaceWith(removebtn)
+                //             })
+                //     })
+                // alternatively use chaining method, instead of nesting callbacks
+                axios.post(`${baseUrl}/users/${loggedInUserID}/friends/${userID}`)
+                    .then((response)=>{
+                        // success
+                        console.log(response)
+                        // return the 2nd async call to use chaining
+                        return axios.post(`${baseUrl}/users/${userID}/friends/${loggedInUserID}`)
+                    })
+                    .then((response)=>{
+                        // success
+                        console.log(response)
+                        // change this button to remove
+                        $("#add-friend").replaceWith(removebtn)
+                    })
+                    .catch((error)=>{
+                        // error
+                        console.log(error)
+                    })
+                
+            })
+            $(document).on("click", "#remove-friend", (evt)=>{
+                console.log("remove friend button working")
+                // remove friend thru the backend
+                axios.delete(`${baseUrl}/users/${loggedInUserID}/friends/${userID}`)
+                    .then((response)=>{
+
+                        // remove vice versa
+                        axios.delete(`${baseUrl}/users/${userID}/friends/${loggedInUserID}`)
+                            .then((res)=>{
+                                // change this button to add
+                                $("#remove-friend").replaceWith(addbutton)
+                            })
+                    })
+                // alternatively can use chaining method above in the add friend function
+            })
+        }//-- end of else statement 
+    </script>
+</body>
+</html>
